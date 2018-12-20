@@ -1,0 +1,12 @@
+[Unit]
+Description=Calaos Dynamic DNS Service
+Before=systemd-user-sessions.service
+
+[Service]
+Type=simple
+ExecStart=/home/raoul/gopath/bin/calaos_dns -c /etc/calaos_dns.conf
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
