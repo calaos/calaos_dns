@@ -290,9 +290,33 @@ func deleteHost(h *Host) (err error) {
 	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
 	if err != nil {
 		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
+		return
 	}
 
 	z := h.Hostname + "." + config.Conf.Powerdns.Zone
+
+	//list of possible _acme-challenge.*** records
+	acme := []string{
+		"_acme-challenge." + z,
+	}
+
+	if h.Subzones != "" {
+		subs := strings.Split(h.Subzones, ",")
+		for _, s := range subs {
+			acme = append(acme, "_acme-challenge."+s+"."+z)
+		}
+	}
+
+	//Delete all _acme-challenge.*** if any. They are used for letsencrypt
+	for _, rr := range zone.RRsets {
+		if stringInSlice(strings.Trim(rr.Name, "."), acme) {
+			log.Println("Deleting record from PowerDNS:", rr.Name)
+			err = zone.DeleteRecord(rr.Name, "TXT")
+			if err != nil {
+				log.Println("Unable to delete record", rr.Name, ":", err)
+			}
+		}
+	}
 
 	if h.Subzones != "" {
 		subs := strings.Split(h.Subzones, ",")
@@ -368,4 +392,134 @@ func UpdateDns(token, ip string) (err error) {
 	}
 
 	return nil
+}
+
+func AddLeRecord(token, leDomain, leToken string) (err error) {
+	log.Println("Add Letsencrypt token for user", token, ". Domain:", leDomain, "Token:", leToken)
+
+	var h Host
+	params := map[string]interface{}{
+		"Token": token,
+	}
+	err = orm.FindOneByQuery(db, &h, params)
+	if err != nil {
+		log.Println("Token has not been found:", err)
+		return fmt.Errorf("Unknown token")
+	}
+
+	if leDomain == "" || leToken == "" {
+		log.Println("Emtpy domain/token:", leDomain, ",", leToken)
+		return fmt.Errorf("Bad input")
+	}
+
+	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	if err != nil {
+		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
+	}
+
+	//Check if domain is registered for this host
+	subs := strings.Split(h.Subzones, ",")
+	if leDomain != h.Hostname && !stringInSlice(leDomain, subs) {
+		log.Println("Wrong domain, not registered for user")
+		return fmt.Errorf("Wrong domain")
+	}
+
+	z := leDomain + "." + config.Conf.Powerdns.Zone
+	if leDomain != h.Hostname { //It's a subdomain
+		z = leDomain + "." + h.Hostname + "." + config.Conf.Powerdns.Zone
+	}
+	acme := "_acme-challenge." + z
+
+	err = zone.AddRecord(acme, "TXT", 60, []string{"\"" + leToken + "\""})
+	if err != nil {
+		log.Println("Unable to update zone for letsencrypt", acme, ":", err)
+	}
+
+	return
+}
+
+func DeleteLeRecord(token, leDomain string) (err error) {
+	log.Println("Delete Letsencrypt token for user", token, ". Domain:", leDomain)
+
+	var h Host
+	params := map[string]interface{}{
+		"Token": token,
+	}
+	err = orm.FindOneByQuery(db, &h, params)
+	if err != nil {
+		log.Println("Token has not been found:", err)
+		return fmt.Errorf("Unknown token")
+	}
+
+	if leDomain == "" {
+		log.Println("Emtpy domain:", leDomain)
+		return fmt.Errorf("Bad input")
+	}
+
+	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	if err != nil {
+		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
+	}
+
+	//Check if domain is registered for this host
+	subs := strings.Split(h.Subzones, ",")
+	if leDomain != h.Hostname && !stringInSlice(leDomain, subs) {
+		log.Println("Wrong domain, not registered for user")
+		return fmt.Errorf("Wrong domain")
+	}
+
+	z := leDomain + "." + config.Conf.Powerdns.Zone
+	if leDomain != h.Hostname { //It's a subdomain
+		z = leDomain + "." + h.Hostname + "." + config.Conf.Powerdns.Zone
+	}
+	acme := "_acme-challenge." + z
+
+	err = zone.DeleteRecord(acme, "TXT")
+	if err != nil {
+		log.Println("Unable to update zone for letsencrypt", acme, ":", err)
+	}
+
+	return
+}
+
+func GetPdnsRecords(h *Host) (records []string) {
+	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	if err != nil {
+		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
+		return
+	}
+
+	z := h.Hostname + "." + config.Conf.Powerdns.Zone
+
+	//list of possible _acme-challenge.*** records
+	acme := []string{
+		"_acme-challenge." + z,
+	}
+
+	if h.Subzones != "" {
+		subs := strings.Split(h.Subzones, ",")
+		for _, s := range subs {
+			acme = append(acme, "_acme-challenge."+s+"."+z)
+			acme = append(acme, s+"."+z)
+		}
+	}
+
+	//Delete all _acme-challenge.*** if any. They are used for letsencrypt
+	for _, rr := range zone.RRsets {
+		if stringInSlice(strings.Trim(rr.Name, "."), acme) ||
+			strings.Trim(rr.Name, ".") == z {
+			records = append(records, formatRecord(&rr))
+		}
+	}
+
+	return
+}
+
+func formatRecord(rr *powerdns.RRset) (s string) {
+	content := ""
+	if len(rr.Records) > 0 {
+		content = rr.Records[0].Content
+	}
+	s = fmt.Sprintf("%v\t%v\t%v\t%v", rr.Name, rr.Type, rr.TTL, content)
+	return
 }

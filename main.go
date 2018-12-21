@@ -105,6 +105,12 @@ func cmdDnsList(cmd *cli.Cmd) {
 			tCheck = tCheck.AddDate(0, 0, 0-config.Conf.General.ExpirationDays)
 			d := h.UpdatedAt.Sub(tCheck)
 			fmt.Printf("\tExpires in:\t%v\n", d)
+
+			pdns := models.GetPdnsRecords(&h)
+			fmt.Printf("\tPowerDNS Records:\n")
+			for _, s := range pdns {
+				fmt.Printf("\t\t\t%v\n", s)
+			}
 		}
 	}
 

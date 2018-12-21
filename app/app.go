@@ -55,6 +55,8 @@ func Init(conffile *string) error {
 	e.POST("/api/register", RegisterDns)
 	e.GET("/api/update/:token", UpdateDns)
 	e.DELETE("/api/delete/:token", DeleteDns)
+	e.POST("/api/letsencrypt", AddLeRecord)
+	e.DELETE("/api/letsencrypt", DeleteLeRecord)
 
 	return nil
 }
@@ -100,6 +102,40 @@ func DeleteDns(c echo.Context) (err error) {
 	token := c.Param("token")
 
 	err = models.DeleteDns(token)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%v", err))
+	}
+
+	return c.NoContent(http.StatusOK)
+}
+
+type LeJson struct {
+	Token    string `json:"token" form:"token" query:"token"`
+	LeDomain string `json:"le_domain" form:"le_domain" query:"le_domain"`
+	LeToken  string `json:"le_token" form:"le_token" query:"le_token"`
+}
+
+func AddLeRecord(c echo.Context) (err error) {
+	req := &LeJson{}
+	if err = c.Bind(req); err != nil {
+		return err
+	}
+
+	err = models.AddLeRecord(req.Token, req.LeDomain, req.LeToken)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%v", err))
+	}
+
+	return c.NoContent(http.StatusCreated)
+}
+
+func DeleteLeRecord(c echo.Context) (err error) {
+	req := &LeJson{}
+	if err = c.Bind(req); err != nil {
+		return err
+	}
+
+	err = models.DeleteLeRecord(req.Token, req.LeDomain)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%v", err))
 	}
