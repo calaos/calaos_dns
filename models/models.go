@@ -217,6 +217,12 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 			}
 		}
 	} else { //User has passed his token, do an update
+
+		//Check if his token is the right one
+		if h.Token != token {
+			return fmt.Errorf("Wrong token"), newToken
+		}
+
 		if h.Subzones != subzone {
 			if h.Subzones != "" {
 				subs := strings.Split(h.Subzones, ",")
