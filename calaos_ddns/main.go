@@ -8,11 +8,14 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/calaos/calaos_dns/calaos_ddns/calaos"
 	"github.com/dghubble/sling"
 	"github.com/fatih/color"
 	"github.com/jawher/mow.cli"
+	"github.com/mattn/go-isatty"
 )
 
 const (
@@ -24,6 +27,7 @@ const (
 	CharVertLine = "\u2502"
 
 	CALAOS_NS = "https://ns1.calaos.fr/"
+	KEY_TOKEN = "ddns_token"
 )
 
 var (
@@ -74,7 +78,7 @@ func cmdRegister(cmd *cli.Cmd) {
 	)
 
 	cmd.Action = func() {
-		err, token := calaos.GetConfig("ddns_token")
+		err, token := calaos.GetConfig(KEY_TOKEN)
 		if err != nil {
 			fmt.Println("Error reading calaos config:", err)
 			return
@@ -102,7 +106,7 @@ func cmdRegister(cmd *cli.Cmd) {
 				return
 			}
 
-			err = calaos.SetConfig("ddns_token", r.Token)
+			err = calaos.SetConfig(KEY_TOKEN, r.Token)
 			if err != nil {
 				fmt.Println("Failed to save token:", err)
 				return
@@ -115,7 +119,7 @@ func cmdRegister(cmd *cli.Cmd) {
 
 func cmdUnregister(cmd *cli.Cmd) {
 	cmd.Action = func() {
-		err, token := calaos.GetConfig("ddns_token")
+		err, token := calaos.GetConfig(KEY_TOKEN)
 		if err != nil {
 			fmt.Println("Error reading calaos config:", err)
 			return
@@ -136,6 +140,11 @@ func cmdUnregister(cmd *cli.Cmd) {
 		if err != nil {
 			fmt.Println(err)
 		} else {
+			err = calaos.DeleteConfig(KEY_TOKEN)
+			if err != nil {
+				fmt.Println("Failed to delete token from config:", err)
+				return
+			}
 			fmt.Println("Unregister successful.")
 		}
 	}
@@ -143,7 +152,7 @@ func cmdUnregister(cmd *cli.Cmd) {
 
 func cmdUpdate(cmd *cli.Cmd) {
 	cmd.Action = func() {
-		err, token := calaos.GetConfig("ddns_token")
+		err, token := calaos.GetConfig(KEY_TOKEN)
 		if err != nil {
 			fmt.Println("Error reading calaos config:", err)
 			return
@@ -170,6 +179,20 @@ func cmdUpdate(cmd *cli.Cmd) {
 }
 
 func doRequest(req *http.Request) (data []byte, err error) {
+	if !isatty.IsTerminal(os.Stdout.Fd()) {
+		return doRequestReal(req)
+	}
+
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	s.Suffix = "  please wait..."
+	s.Color("blue")
+	s.Start()
+	defer s.Stop()
+
+	return doRequestReal(req)
+}
+
+func doRequestReal(req *http.Request) (data []byte, err error) {
 	failJson := &struct {
 		Message string `json:"message"`
 	}{Message: ""}

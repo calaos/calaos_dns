@@ -122,6 +122,41 @@ func SetConfig(key, value string) (err error) {
 	return
 }
 
+func DeleteConfig(key string) (err error) {
+	xmlFile, err := os.OpenFile(getConfigFile(LOCAL_CONFIG), os.O_RDWR, 0666)
+	if err != nil {
+		log.Println("Failed to open file:", err)
+		return
+	}
+	defer xmlFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(xmlFile)
+	conf := CalaosConfig{}
+	xml.Unmarshal(byteValue, &conf)
+
+	out := `<?xml version="1.0" encoding="UTF-8" ?>
+<calaos:config xmlns:calaos="http://www.calaos.fr">
+`
+
+	for _, opt := range conf.Options {
+		v := opt.Value
+		if opt.Key == key {
+			continue
+		}
+
+		out += "    <calaos:option name=\"" + opt.Key + "\" value=\"" + v + "\" />\n"
+	}
+
+	out += `</calaos:config>`
+
+	xmlFile.Truncate(0)
+	xmlFile.Seek(0, 0)
+
+	_, err = xmlFile.WriteString(out)
+
+	return
+}
+
 func init() {
 	log.Println("Using file:", getConfigFile(LOCAL_CONFIG))
 }
