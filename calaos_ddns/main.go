@@ -80,7 +80,7 @@ func cmdRegister(cmd *cli.Cmd) {
 	cmd.Action = func() {
 		err, token := calaos.GetConfig(KEY_TOKEN)
 		if err != nil {
-			fmt.Println("Error reading calaos config:", err)
+			exit(fmt.Errorf("Error reading calaos config:", err), 1)
 			return
 		}
 
@@ -92,7 +92,7 @@ func cmdRegister(cmd *cli.Cmd) {
 
 		slingReq, err := sling.New().Base(CALAOS_NS).Post("api/register").BodyJSON(jdata).Request()
 		if err != nil {
-			fmt.Println("Error creating sling:", err)
+			exit(fmt.Errorf("Error creating sling:", err), 1)
 			return
 		}
 
@@ -102,17 +102,17 @@ func cmdRegister(cmd *cli.Cmd) {
 		} else {
 			r := RegisterJson{}
 			if err := json.Unmarshal(data, &r); err != nil {
-				fmt.Printf("Failed to unmarshal data: %v, Error: %v\n", data, err)
+				exit(fmt.Errorf("Failed to unmarshal data: %v, Error: %v\n", data, err), 1)
 				return
 			}
 
 			err = calaos.SetConfig(KEY_TOKEN, r.Token)
 			if err != nil {
-				fmt.Println("Failed to save token:", err)
+				exit(fmt.Errorf("Failed to save token:", err), 1)
 				return
 			}
 
-			fmt.Println("Register successful.")
+			color.Green(CharCheck + " Register successful.")
 		}
 	}
 }
@@ -121,7 +121,7 @@ func cmdUnregister(cmd *cli.Cmd) {
 	cmd.Action = func() {
 		err, token := calaos.GetConfig(KEY_TOKEN)
 		if err != nil {
-			fmt.Println("Error reading calaos config:", err)
+			exit(fmt.Errorf("Error reading calaos config:", err), 1)
 			return
 		}
 
@@ -132,7 +132,7 @@ func cmdUnregister(cmd *cli.Cmd) {
 
 		slingReq, err := sling.New().Base(CALAOS_NS).Delete("api/delete/" + token).Request()
 		if err != nil {
-			fmt.Println("Error creating sling:", err)
+			exit(fmt.Errorf("Error creating sling:", err), 1)
 			return
 		}
 
@@ -142,10 +142,11 @@ func cmdUnregister(cmd *cli.Cmd) {
 		} else {
 			err = calaos.DeleteConfig(KEY_TOKEN)
 			if err != nil {
-				fmt.Println("Failed to delete token from config:", err)
+				exit(fmt.Errorf("Failed to delete token from config:", err), 1)
 				return
 			}
-			fmt.Println("Unregister successful.")
+
+			color.Green(CharCheck + " Unregister successful.")
 		}
 	}
 }
@@ -154,26 +155,26 @@ func cmdUpdate(cmd *cli.Cmd) {
 	cmd.Action = func() {
 		err, token := calaos.GetConfig(KEY_TOKEN)
 		if err != nil {
-			fmt.Println("Error reading calaos config:", err)
+			exit(fmt.Errorf("Error reading calaos config:", err), 1)
 			return
 		}
 
 		if token == "" {
-			fmt.Println("Saved token not found. Nothing to update.")
+			exit(fmt.Errorf("Saved token not found. Nothing to update."), 1)
 			return
 		}
 
 		slingReq, err := sling.New().Base(CALAOS_NS).Get("api/update/" + token).Request()
 		if err != nil {
-			fmt.Println("Error creating sling:", err)
+			exit(fmt.Errorf("Error creating sling:", err), 1)
 			return
 		}
 
 		_, err = doRequest(slingReq)
 		if err != nil {
-			fmt.Println(err)
+			exit(err, 1)
 		} else {
-			fmt.Println("Update successful.")
+			color.Green(CharCheck + " Update successful.")
 		}
 	}
 }

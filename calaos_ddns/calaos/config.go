@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/calaos/calaos_dns/calaos_ddns/env"
 	"github.com/mitchellh/go-homedir"
+	"github.com/xenolf/lego/platform/config/env"
 )
 
 var (
