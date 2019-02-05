@@ -1,17 +1,20 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/calaos/calaos_dns/calaos_ddns/calaos"
+	lecert "github.com/calaos/calaos_dns/calaos_ddns/cert"
 	"github.com/dghubble/sling"
 	"github.com/fatih/color"
 	"github.com/jawher/mow.cli"
@@ -26,8 +29,9 @@ const (
 	CharArrow    = "\u2012\u25b6"
 	CharVertLine = "\u2502"
 
-	CALAOS_NS = "https://ns1.calaos.fr/"
-	KEY_TOKEN = "ddns_token"
+	CALAOS_NS    = "https://ns1.calaos.fr/"
+	KEY_TOKEN    = "ddns_token"
+	KEY_LE_EMAIL = "ddns_le_email"
 )
 
 var (
@@ -70,6 +74,10 @@ type RegisterJson struct {
 	Token    string `json:"token"`
 }
 
+var (
+	emailRegexp = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+)
+
 func cmdRegister(cmd *cli.Cmd) {
 	cmd.Spec = "DOMAIN [SUBDOMAIN...]"
 	var (
@@ -106,10 +114,58 @@ func cmdRegister(cmd *cli.Cmd) {
 				return
 			}
 
+			err, le_email := calaos.GetConfig(KEY_LE_EMAIL)
+			if err != nil {
+				exit(fmt.Errorf("Error reading calaos config:", err), 1)
+				return
+			}
+
+			if le_email == "" {
+				fmt.Println(CharWarning, "To generate a Let's Encrypt certificate, you need to set a user email address.")
+				fmt.Print("Enter your email address: ")
+				scanner := bufio.NewScanner(os.Stdin)
+				scanner.Scan()
+
+				email := scanner.Text()
+
+				if email == "" {
+					fmt.Println("An emtpy email address is not valid. No certificate will be generated.")
+				} else if !emailRegexp.MatchString(email) {
+					fmt.Println(errorRed(CharAbort), "Wrong email address format. No certificate will be generated.")
+				} else {
+					le_email = email
+					err = calaos.SetConfig(KEY_LE_EMAIL, le_email)
+					if err != nil {
+						fmt.Println("Failed to save le_email:", err)
+					}
+				}
+			}
+
 			err = calaos.SetConfig(KEY_TOKEN, r.Token)
 			if err != nil {
 				exit(fmt.Errorf("Failed to save token:", err), 1)
 				return
+			}
+
+			if len(le_email) != 0 {
+				//Get a certificate from let's encrypt
+				var le_domain []string
+				le_domain = append(le_domain, *domain+".calaos.fr")
+				for _, s := range *subdomains {
+					d := fmt.Sprintf("%s.%s.calaos.fr", s, *domain)
+					le_domain = append(le_domain, d)
+				}
+
+				s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+				s.Suffix = "  Getting a certificate from Let's Encrypt. Please wait..."
+				s.Color("blue")
+				s.Start()
+				defer s.Stop()
+
+				err = lecert.GenerateCert(le_domain, le_email)
+				if err != nil {
+					fmt.Println(errorRed(CharAbort), "Failed to generate certificate:", err)
+				}
 			}
 
 			color.Green(CharCheck + " Register successful.")
@@ -126,7 +182,7 @@ func cmdUnregister(cmd *cli.Cmd) {
 		}
 
 		if token == "" {
-			fmt.Println("Saved token not found. Nothing to unregister.")
+			exit(fmt.Errorf("Saved token not found. Nothing to unregister."), 1)
 			return
 		}
 
@@ -160,7 +216,7 @@ func cmdUpdate(cmd *cli.Cmd) {
 		}
 
 		if token == "" {
-			exit(fmt.Errorf("Saved token not found. Nothing to update."), 1)
+			exit(fmt.Errorf("Saved token not found. Nothing to update."), 0)
 			return
 		}
 
