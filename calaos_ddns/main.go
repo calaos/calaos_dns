@@ -15,10 +15,13 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/calaos/calaos_dns/calaos_ddns/calaos"
 	lecert "github.com/calaos/calaos_dns/calaos_ddns/cert"
+	"github.com/calaos/calaos_dns/calaos_ddns/haproxy"
+	"github.com/calaos/calaos_dns/utils"
 	"github.com/dghubble/sling"
 	"github.com/fatih/color"
 	"github.com/jawher/mow.cli"
 	"github.com/mattn/go-isatty"
+	"github.com/xenolf/lego/platform/config/env"
 )
 
 const (
@@ -63,6 +66,10 @@ func main() {
 	mnApp.Command("unregister", "Unregister the saved DNS record", cmdUnregister)
 	mnApp.Command("update", "Update IP of DNS record", cmdUpdate)
 
+	if _, _, err := utils.InitLogger(); err != nil {
+		exit(err, 1)
+	}
+
 	if err := mnApp.Run(os.Args); err != nil {
 		exit(err, 1)
 	}
@@ -92,9 +99,24 @@ func cmdRegister(cmd *cli.Cmd) {
 			return
 		}
 
+		haconf, err := haproxy.ParseDomains(*domain, *subdomains)
+		if err != nil {
+			exit(fmt.Errorf("Error parsing domain redirections:", err), 1)
+			return
+		}
+
+		mainDomain := ""
+		subzones := []string{}
+		for i, b := range haconf.Backends {
+			if i == 0 {
+				mainDomain = haconf.Backends[0].Name
+			}
+			subzones = append(subzones, b.Name)
+		}
+
 		jdata := RegisterJson{
-			Mainzone: *domain,
-			Subzones: strings.Join(*subdomains, ","),
+			Mainzone: mainDomain,
+			Subzones: strings.Join(subzones, ","),
 			Token:    token,
 		}
 
@@ -150,9 +172,12 @@ func cmdRegister(cmd *cli.Cmd) {
 			if len(le_email) != 0 {
 				//Get a certificate from let's encrypt
 				var le_domain []string
-				le_domain = append(le_domain, *domain+".calaos.fr")
-				for _, s := range *subdomains {
-					d := fmt.Sprintf("%s.%s.calaos.fr", s, *domain)
+				le_domain = append(le_domain, mainDomain+".calaos.fr")
+				for i, b := range haconf.Backends {
+					if i == 0 {
+						continue
+					}
+					d := fmt.Sprintf("%s.%s.calaos.fr", b.Name, mainDomain)
 					le_domain = append(le_domain, d)
 				}
 
@@ -160,15 +185,24 @@ func cmdRegister(cmd *cli.Cmd) {
 				s.Suffix = "  Getting a certificate from Let's Encrypt. Please wait..."
 				s.Color("blue")
 				s.Start()
-				defer s.Stop()
 
 				err = lecert.GenerateCert(le_domain, le_email)
+				s.Stop()
 				if err != nil {
 					fmt.Println(errorRed(CharAbort), "Failed to generate certificate:", err)
+				} else {
+
+					//Copy the certificate to haproxy location and concatenate key+cert
+					err = lecert.WritePemFile(env.GetOrDefaultString("CALAOS_CERT_FILE", "/etc/ssl/haproxy/server.pem"))
+					if err != nil {
+						fmt.Println(errorRed(CharAbort), "Failed to write certificate:", err)
+					}
 				}
 			}
 
-			color.Green(CharCheck + " Register successful.")
+			if err == nil {
+				color.Green(CharCheck + " Register successful.")
+			}
 		}
 	}
 }

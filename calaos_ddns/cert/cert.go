@@ -5,24 +5,23 @@ package cert
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
-	"path/filepath"
 
+	"github.com/calaos/calaos_dns/utils"
 	"github.com/xenolf/lego/certificate"
 	legoLog "github.com/xenolf/lego/log"
 )
 
 // GenerateCert do all the job to obtain a new certicate from letsencrypt
 func GenerateCert(domains []string, mail string) (err error) {
-	createConfig()
+	CreateConfig()
 
-	logFile, err := os.OpenFile(filepath.Join(conf.CacheDir, "letsencrypt.log"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	_, logFile, err := utils.InitLogger()
 	if err != nil {
-		return fmt.Errorf("[FATAL] cert: failed to create logfile", err)
+		return
 	}
-
-	log.SetOutput(logFile)
 	legoLog.Logger = log.New(logFile, "", log.LstdFlags)
 
 	//create acme client
@@ -46,5 +45,29 @@ func GenerateCert(domains []string, mail string) (err error) {
 		return fmt.Errorf("failed to write cert to disk: %v", err)
 	}
 
+	return
+}
+
+func WritePemFile(certfile string) (err error) {
+	in, err := os.Open(conf.CacheDir + "/cert_key.pem")
+	if err != nil {
+		return
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(certfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return
+	}
+	defer func() {
+		cerr := out.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+	if _, err = io.Copy(out, in); err != nil {
+		return
+	}
+	err = out.Sync()
 	return
 }

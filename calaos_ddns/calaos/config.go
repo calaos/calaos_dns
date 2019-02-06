@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/calaos/calaos_dns/utils"
 	"github.com/mitchellh/go-homedir"
 	"github.com/xenolf/lego/platform/config/env"
 )
@@ -158,5 +159,6 @@ func DeleteConfig(key string) (err error) {
 }
 
 func init() {
+	utils.InitLogger()
 	log.Println("Using file:", getConfigFile(LOCAL_CONFIG))
 }

@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/mitchellh/go-homedir"
+	"github.com/calaos/calaos_dns/utils"
 )
 
 var conf *Config
@@ -40,11 +40,9 @@ type Config struct {
 }
 
 // CheckConfig checks if config can be used to obtain a cert
-func createConfig() {
+func CreateConfig() {
 	c := Default
-	c.CacheDir, _ = homedir.Dir()
-	c.CacheDir = c.CacheDir + "/.cache/calaos/ddns"
-	createDir(c.CacheDir, c.CacheDirPerm)
+	c.CacheDir = utils.CreateCacheDir()
 
 	c.DirectoryURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
 

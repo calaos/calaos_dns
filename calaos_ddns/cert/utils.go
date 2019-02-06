@@ -2,22 +2,11 @@ package cert
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/xenolf/lego/certificate"
 )
-
-func createDir(cacheDir string, cacheperm os.FileMode) {
-	_, err := os.Stat(cacheDir)
-	if err != nil {
-		err = os.MkdirAll(cacheDir, cacheperm)
-		if err != nil {
-			fmt.Println("Failed to create cache dir.")
-		}
-	}
-}
 
 // CR represents an Lego Certificate Resource
 type CR struct {
@@ -74,6 +63,21 @@ func saveCertToDisk(cert *certificate.Resource, cacheDir string) error {
 
 	// write private key PEM to disk
 	err = ioutil.WriteFile(cacheDir+"/key.pem", cert.PrivateKey, conf.CacheDirPerm)
+	if err != nil {
+		return err
+	}
+
+	fp, err := os.OpenFile(cacheDir+"/cert_key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, conf.CacheDirPerm)
+	if err != nil {
+		return err
+	}
+	defer fp.Close()
+
+	_, err = fp.Write(cert.PrivateKey)
+	if err != nil {
+		return err
+	}
+	_, err = fp.Write(cert.Certificate)
 	if err != nil {
 		return err
 	}

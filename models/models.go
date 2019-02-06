@@ -9,6 +9,7 @@ import (
 
 	"github.com/calaos/calaos_dns/config"
 	"github.com/calaos/calaos_dns/models/orm"
+	"github.com/calaos/calaos_dns/utils"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -24,7 +25,9 @@ var (
 )
 
 func Init(logSql bool) (err error) {
-	pdns = powerdns.NewClient(config.Conf.Powerdns.Api, "localhost", config.Conf.Powerdns.ApiKey)
+	headers := make(map[string]string)
+	headers["X-API-Key"] = config.Conf.Powerdns.ApiKey
+	pdns = powerdns.NewClient(config.Conf.Powerdns.Api, "localhost", headers, nil)
 
 	wantLogging = logSql
 	db, err = gorm.Open(config.Conf.Database.Type, config.Conf.Database.Dsn)
@@ -133,13 +136,13 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 		return fmt.Errorf("Mainzone is empty"), newToken
 	}
 
-	mainzone, valid := isValidHostname(mainzone)
+	mainzone, valid := utils.IsValidHostname(mainzone)
 	if !valid {
 		log.Println("Failure: Invalid hostname:", mainzone)
 		return fmt.Errorf("Invalid hostname"), newToken
 	}
 
-	if stringInSlice(mainzone, config.Conf.Powerdns.Blacklist) {
+	if utils.StringInSlice(mainzone, config.Conf.Powerdns.Blacklist) {
 		log.Println("Failure: Invalid hostname, is in blacklist:", mainzone)
 		return fmt.Errorf("Invalid hostname"), newToken
 	}
@@ -147,7 +150,7 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 	if subzone != "" {
 		subs := strings.Split(subzone, ",")
 		for _, s := range subs {
-			_, valid = isValidHostname(s)
+			_, valid = utils.IsValidHostname(s)
 			if !valid {
 				log.Println("Failure: Invalid sub hostname:", s)
 				return fmt.Errorf("Invalid hostname"), newToken
@@ -178,7 +181,7 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 		h.Hostname = mainzone
 		h.Subzones = subzone
 		h.IP = ip
-		h.Token = tokenGenerator()
+		h.Token = utils.TokenGenerator()
 
 		log.Println("Adding new host to DB with token:", h.Token)
 
@@ -315,7 +318,7 @@ func deleteHost(h *Host) (err error) {
 
 	//Delete all _acme-challenge.*** if any. They are used for letsencrypt
 	for _, rr := range zone.RRsets {
-		if stringInSlice(strings.Trim(rr.Name, "."), acme) {
+		if utils.StringInSlice(strings.Trim(rr.Name, "."), acme) {
 			log.Println("Deleting record from PowerDNS:", rr.Name)
 			err = zone.DeleteRecord(rr.Name, "TXT")
 			if err != nil {
@@ -425,7 +428,7 @@ func AddLeRecord(token, leDomain, leToken string) (err error) {
 
 	//Check if domain is registered for this host
 	subs := strings.Split(h.Subzones, ",")
-	if leDomain != h.Hostname && !stringInSlice(leDomain, subs) {
+	if leDomain != h.Hostname && !utils.StringInSlice(leDomain, subs) {
 		log.Println("Wrong domain, not registered for user")
 		return fmt.Errorf("Wrong domain")
 	}
@@ -469,7 +472,7 @@ func DeleteLeRecord(token, leDomain string) (err error) {
 
 	//Check if domain is registered for this host
 	subs := strings.Split(h.Subzones, ",")
-	if leDomain != h.Hostname && !stringInSlice(leDomain, subs) {
+	if leDomain != h.Hostname && !utils.StringInSlice(leDomain, subs) {
 		log.Println("Wrong domain, not registered for user")
 		return fmt.Errorf("Wrong domain")
 	}
@@ -512,7 +515,7 @@ func GetPdnsRecords(h *Host) (records []string) {
 
 	//Delete all _acme-challenge.*** if any. They are used for letsencrypt
 	for _, rr := range zone.RRsets {
-		if stringInSlice(strings.Trim(rr.Name, "."), acme) ||
+		if utils.StringInSlice(strings.Trim(rr.Name, "."), acme) ||
 			strings.Trim(rr.Name, ".") == z {
 			records = append(records, formatRecord(&rr))
 		}
