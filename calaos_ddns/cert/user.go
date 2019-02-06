@@ -52,6 +52,10 @@ func getUser(email string) SSLUser {
 			log.Fatal(err)
 		}
 
+		if email == "" {
+			log.Fatal("[acme] Empty email address")
+		}
+
 		// Create new user
 		u = SSLUser{
 			Email: email,

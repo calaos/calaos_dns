@@ -183,13 +183,18 @@ func cmdRegister(cmd *cli.Cmd) {
 					le_domain = append(le_domain, d)
 				}
 
-				s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-				s.Suffix = "  Getting a certificate from Let's Encrypt. Please wait..."
-				s.Color("blue")
-				s.Start()
+				var s *spinner.Spinner
+				if isatty.IsTerminal(os.Stdout.Fd()) {
+					s = spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+					s.Suffix = "  Getting a certificate from Let's Encrypt. Please wait..."
+					s.Color("blue")
+					s.Start()
+				}
 
 				err = lecert.GenerateCert(le_domain, le_email)
-				s.Stop()
+				if isatty.IsTerminal(os.Stdout.Fd()) {
+					s.Stop()
+				}
 				if err != nil {
 					fmt.Println(errorRed(CharAbort), "Failed to generate certificate:", err)
 				} else {
@@ -251,6 +256,11 @@ func cmdUnregister(cmd *cli.Cmd) {
 }
 
 func cmdUpdate(cmd *cli.Cmd) {
+	cmd.Spec = "[-f]"
+	var (
+		forceRenew = cmd.BoolOpt("f force-renew", false, "Force renew even if certificate is not expired")
+	)
+
 	cmd.Action = func() {
 		err, token := calaos.GetConfig(KEY_TOKEN)
 		if err != nil {
@@ -272,8 +282,30 @@ func cmdUpdate(cmd *cli.Cmd) {
 		_, err = doRequest(slingReq)
 		if err != nil {
 			exit(err, 1)
-		} else {
-			color.Green(CharCheck + " Update successful.")
+		}
+
+		var s *spinner.Spinner
+		if isatty.IsTerminal(os.Stdout.Fd()) {
+			s = spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+			s.Suffix = "  Renewing certificate. Please wait..."
+			s.Color("blue")
+			s.Start()
+		}
+
+		hasrenew, err := lecert.MaybeRenew(*forceRenew)
+		if isatty.IsTerminal(os.Stdout.Fd()) {
+			s.Stop()
+		}
+		if err != nil {
+			exit(err, 1)
+		}
+
+		if err == nil {
+			if hasrenew {
+				color.Green(CharCheck + " Update successful. Certificate has been renewed")
+			} else {
+				color.Green(CharCheck + " Update successful.")
+			}
 		}
 	}
 }
