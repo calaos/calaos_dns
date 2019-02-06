@@ -49,17 +49,20 @@ frontend home-https
     bind *:443 ssl crt /etc/ssl/haproxy/server.pem
     reqadd X-Forwarded-Proto:\ https
 		
-{{range .Backends}}
-{{if not .Default}}
+{{- range .Backends -}}
+{{- if .Ip}}
+{{- if not .Default}}
 	use_backend {{.Name}} if { ssl_fc_sni {{.Fqdn}} }
-{{else}}
+{{- else}}
 	default_backend {{.Name}}
-{{end}}
-{{end}}
+{{- end -}}
+{{- end -}}
+{{- end}}
 
 {{range .Backends}}
+{{- if .Ip}}
 backend {{.Name}}
 	redirect scheme https if !{ ssl_fc }
 	server {{.ServerName}} {{.Ip}}:{{.Port}} check
-
+{{end -}}
 {{end}}

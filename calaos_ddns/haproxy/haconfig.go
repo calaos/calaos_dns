@@ -68,16 +68,14 @@ func ParseDomains(domain string, subdomains []string) (*Config, error) {
 
 		habackend := &HaBackend{
 			Name:       name,
-			Fqdn:       maindomain + "." + name + ".calaos.fr",
+			Fqdn:       name + "." + maindomain + ".calaos.fr",
 			ServerName: name + "-server",
 			Ip:         ip,
 			Port:       port,
 			Default:    false,
 		}
 
-		if ip != "" {
-			config.Backends = append(config.Backends, habackend)
-		}
+		config.Backends = append(config.Backends, habackend)
 	}
 
 	return config, nil

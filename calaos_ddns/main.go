@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -110,8 +111,9 @@ func cmdRegister(cmd *cli.Cmd) {
 		for i, b := range haconf.Backends {
 			if i == 0 {
 				mainDomain = haconf.Backends[0].Name
+			} else {
+				subzones = append(subzones, b.Name)
 			}
-			subzones = append(subzones, b.Name)
 		}
 
 		jdata := RegisterJson{
@@ -196,6 +198,13 @@ func cmdRegister(cmd *cli.Cmd) {
 					err = lecert.WritePemFile(env.GetOrDefaultString("CALAOS_CERT_FILE", "/etc/ssl/haproxy/server.pem"))
 					if err != nil {
 						fmt.Println(errorRed(CharAbort), "Failed to write certificate:", err)
+					}
+
+					templateFile := filepath.Join(env.GetOrDefaultString("CALAOS_HAPROXY_PATH", "/etc/haproxy/haproxy"), "haproxy.template")
+					outFile := filepath.Join(env.GetOrDefaultString("CALAOS_HAPROXY_PATH", "/etc/haproxy/haproxy"), "haproxy.cfg")
+					err = haproxy.RenderConfig(outFile, templateFile, haconf)
+					if err != nil {
+						fmt.Println(errorRed(CharAbort), "Failed to write haproxy config:", err)
 					}
 				}
 			}
