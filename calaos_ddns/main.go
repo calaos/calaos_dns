@@ -90,7 +90,7 @@ func cmdRegister(cmd *cli.Cmd) {
 	cmd.Spec = "DOMAIN [SUBDOMAIN...]"
 	var (
 		domain     = cmd.StringArg("DOMAIN", "", "The subdomain to register (ex. myname would register myname.calaos.fr)")
-		subdomains = cmd.StringsArg("SUBDOMAIN", nil, "The subdomains to register under your maindomain (ex. camera1 would register camera1.myname.calaos.fr)")
+		subdomains = cmd.StringsArg("SUBDOMAIN", nil, "The subdomains to register under your maindomain (ex. camera1 would register camera1.myname.calaos.fr) camera1=192.168.0.1:4444 will also create a haproxy entry for pointing to the correct IP address")
 	)
 
 	cmd.Action = func() {
