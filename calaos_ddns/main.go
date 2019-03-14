@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -303,6 +304,19 @@ func cmdUpdate(cmd *cli.Cmd) {
 
 		if err == nil {
 			if hasrenew {
+				//Copy the certificate to haproxy location and concatenate key+cert
+				err = lecert.WritePemFile(env.GetOrDefaultString("CALAOS_CERT_FILE", "/etc/ssl/haproxy/server.pem"))
+				if err != nil {
+					fmt.Println(errorRed(CharAbort), "Failed to write certificate:", err)
+				}
+
+				//Restart haproxy
+				cmd := exec.Command("/bin/systemctl", "restart", "haproxy.service")
+				err := cmd.Run()
+				if err != nil {
+					fmt.Println(errorRed(CharAbort), "Failed to restart haproxy... ", err)
+				}
+
 				color.Green(CharCheck + " Update successful. Certificate has been renewed")
 			} else {
 				color.Green(CharCheck + " Update successful.")
