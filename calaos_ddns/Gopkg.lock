@@ -10,6 +10,14 @@
   version = "1.4"
 
 [[projects]]
+  branch = "master"
+  digest = "1:0f56a1367ebdfaeafa8e066ff105f78dd2e64eeb941160969f962de12d48a485"
+  name = "github.com/calaos/calaos_dns"
+  packages = ["utils"]
+  pruneopts = "UT"
+  revision = "e7c09f46fb2a4aafef8f2699d92da17514910c11"
+
+[[projects]]
   digest = "1:fba61d8584058169c5bd4625196f33077ba937f7131625d4440686c5e4cff380"
   name = "github.com/dghubble/sling"
   packages = ["."]
@@ -184,6 +192,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/briandowns/spinner",
+    "github.com/calaos/calaos_dns/utils",
     "github.com/dghubble/sling",
     "github.com/fatih/color",
     "github.com/jawher/mow.cli",
