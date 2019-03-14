@@ -138,6 +138,13 @@ func cmdRegister(cmd *cli.Cmd) {
 				return
 			}
 
+			//Save token before trying to get LE cert. In case of failure user can then unregister the domain
+			err = calaos.SetConfig(KEY_TOKEN, r.Token)
+			if err != nil {
+				exit(fmt.Errorf("Failed to save token:", err), 1)
+				return
+			}
+
 			err, le_email := calaos.GetConfig(KEY_LE_EMAIL)
 			if err != nil {
 				exit(fmt.Errorf("Error reading calaos config:", err), 1)
@@ -163,12 +170,6 @@ func cmdRegister(cmd *cli.Cmd) {
 						fmt.Println("Failed to save le_email:", err)
 					}
 				}
-			}
-
-			err = calaos.SetConfig(KEY_TOKEN, r.Token)
-			if err != nil {
-				exit(fmt.Errorf("Failed to save token:", err), 1)
-				return
 			}
 
 			if len(le_email) != 0 {
