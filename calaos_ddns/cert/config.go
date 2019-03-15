@@ -44,7 +44,8 @@ func CreateConfig() {
 	c := Default
 	c.CacheDir = utils.CreateCacheDir()
 
-	c.DirectoryURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
+	//For testing in dev
+	//c.DirectoryURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
 
 	conf = c
 }

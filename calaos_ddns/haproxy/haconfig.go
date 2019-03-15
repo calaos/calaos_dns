@@ -11,8 +11,9 @@ import (
 )
 
 type Config struct {
-	Banner   string
-	Backends []*HaBackend
+	Banner         string
+	Backends       []*HaBackend
+	DefaultBackend string
 }
 
 type HaBackend struct {
@@ -54,6 +55,8 @@ func ParseDomains(domain string, subdomains []string) (*Config, error) {
 	}
 
 	config.Backends[0].Name = maindomain
+	config.DefaultBackend = maindomain
+
 	//Another ip for calaos-server can be set
 	if ip != "" {
 		config.Backends[0].Ip = ip

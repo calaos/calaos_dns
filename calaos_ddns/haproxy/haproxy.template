@@ -43,7 +43,7 @@ defaults
 frontend calaos-http
     bind *:80
     reqadd X-Forwarded-Proto:\ http
-    default_backend calaos-backend
+    default_backend {{ .DefaultBackend }}
 
 frontend home-https
     bind *:443 ssl crt /etc/ssl/haproxy/server.pem
