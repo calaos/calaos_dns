@@ -98,7 +98,7 @@ func cmdRegister(cmd *cli.Cmd) {
 
 		haconf, err := haproxy.ParseDomains(*domain, *subdomains)
 		if err != nil {
-			exit(fmt.Errorf("Error parsing domain redirections:", err), 1)
+			exit(fmt.Errorf("Error parsing domain redirections: %v", err), 1)
 			return
 		}
 

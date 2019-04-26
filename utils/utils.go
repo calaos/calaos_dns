@@ -44,6 +44,12 @@ func IsValidHostname(host string) (string, bool) {
 	return host, valid
 }
 
+func IsValidSubHostname(host string) (string, bool) {
+	valid, _ := regexp.Match("^[a-z0-9]{3,32}$", []byte(host))
+
+	return host, valid
+}
+
 func StringInSlice(a string, list []string) bool {
 	for _, b := range list {
 		if b == a {

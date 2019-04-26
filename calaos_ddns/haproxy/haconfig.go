@@ -49,7 +49,7 @@ func createConfig() *Config {
 func ParseDomains(domain string, subdomains []string) (*Config, error) {
 	config := createConfig()
 
-	maindomain, ip, port, err := parseOpt(domain)
+	maindomain, ip, port, err := parseOpt(domain, false)
 	if err != nil {
 		return nil, fmt.Errorf("Failure to parse %v", domain)
 	}
@@ -64,9 +64,9 @@ func ParseDomains(domain string, subdomains []string) (*Config, error) {
 	}
 
 	for _, sub := range subdomains {
-		name, ip, port, err := parseOpt(sub)
+		name, ip, port, err := parseOpt(sub, true)
 		if err != nil {
-			return nil, fmt.Errorf("Failure to parse %v", sub)
+			return nil, fmt.Errorf("Failure to parse %v: %v", sub, err)
 		}
 
 		habackend := &HaBackend{
@@ -84,7 +84,7 @@ func ParseDomains(domain string, subdomains []string) (*Config, error) {
 	return config, nil
 }
 
-func parseOpt(opt string) (name, ip, port string, err error) {
+func parseOpt(opt string, sub bool) (name, ip, port string, err error) {
 	if i := strings.IndexByte(opt, '='); i >= 0 {
 		name = opt[:i]
 		rest := opt[i+1:]
@@ -106,8 +106,14 @@ func parseOpt(opt string) (name, ip, port string, err error) {
 		err = errors.New("no hostname defined")
 	}
 
-	if !isValidHostname(name) {
-		err = errors.New("hostname is invalid")
+	if sub {
+		if !isValidSubHostname(name) {
+			err = errors.New("hostname is invalid")
+		}
+	} else {
+		if !isValidHostname(name) {
+			err = errors.New("hostname is invalid")
+		}
 	}
 
 	return
@@ -136,6 +142,12 @@ func RenderConfig(outFile string, templateFile string, config *Config) error {
 
 func isValidHostname(host string) bool {
 	valid, _ := regexp.Match("^[a-z0-9]{4,32}$", []byte(host))
+
+	return valid
+}
+
+func isValidSubHostname(host string) bool {
+	valid, _ := regexp.Match("^[a-z0-9]{2,32}$", []byte(host))
 
 	return valid
 }

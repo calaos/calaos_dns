@@ -150,7 +150,7 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 	if subzone != "" {
 		subs := strings.Split(subzone, ",")
 		for _, s := range subs {
-			_, valid = utils.IsValidHostname(s)
+			_, valid = utils.IsValidSubHostname(s)
 			if !valid {
 				log.Println("Failure: Invalid sub hostname:", s)
 				return fmt.Errorf("Invalid hostname"), newToken
