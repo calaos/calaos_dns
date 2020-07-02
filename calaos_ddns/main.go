@@ -20,7 +20,7 @@ import (
 	"github.com/calaos/calaos_dns/utils"
 	"github.com/dghubble/sling"
 	"github.com/fatih/color"
-	cli "github.com/jawher/mow.cli"
+	"github.com/jawher/mow.cli"
 	"github.com/mattn/go-isatty"
 	"github.com/xenolf/lego/platform/config/env"
 )
@@ -253,14 +253,13 @@ func cmdUnregister(cmd *cli.Cmd) {
 
 func cmdReset(cmd *cli.Cmd) {
 	cmd.Action = func() {
-		err := calaos.SetConfig(KEY_TOKEN, "")
+		err := calaos.DeleteConfig(KEY_TOKEN)
 		if err != nil {
 			exit(fmt.Errorf("Failed to reset token from config:", err), 1)
 			return
 		}
 
 		color.Green(CharCheck + " Reset successful.")
-
 	}
 }
 
