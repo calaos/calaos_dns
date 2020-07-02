@@ -66,6 +66,7 @@ func main() {
 	mnApp.Command("register", "Register a DNS record", cmdRegister)
 	mnApp.Command("unregister", "Unregister the saved DNS record", cmdUnregister)
 	mnApp.Command("update", "Update IP of DNS record", cmdUpdate)
+	mnApp.Command("reset", "Reset an expired token", cmdReset)
 
 	if _, _, err := utils.InitLogger(); err != nil {
 		exit(err, 1)
@@ -247,6 +248,18 @@ func cmdUnregister(cmd *cli.Cmd) {
 
 			color.Green(CharCheck + " Unregister successful.")
 		}
+	}
+}
+
+func cmdReset(cmd *cli.Cmd) {
+	cmd.Action = func() {
+		err := calaos.DeleteConfig(KEY_TOKEN)
+		if err != nil {
+			exit(fmt.Errorf("Failed to reset token from config:", err), 1)
+			return
+		}
+
+		color.Green(CharCheck + " Reset successful.")
 	}
 }
 
