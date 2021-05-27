@@ -1,0 +1,58 @@
+# github.com/BurntSushi/toml v0.3.1
+github.com/BurntSushi/toml
+# github.com/dghubble/sling v1.2.0
+github.com/dghubble/sling
+# github.com/dgrijalva/jwt-go v3.2.0+incompatible
+github.com/dgrijalva/jwt-go
+# github.com/fatih/color v1.7.0
+github.com/fatih/color
+# github.com/go-sql-driver/mysql v1.4.1
+github.com/go-sql-driver/mysql
+# github.com/google/go-querystring v1.0.0
+github.com/google/go-querystring/query
+# github.com/jawher/mow.cli v1.0.4
+github.com/jawher/mow.cli
+github.com/jawher/mow.cli/internal/container
+github.com/jawher/mow.cli/internal/flow
+github.com/jawher/mow.cli/internal/fsm
+github.com/jawher/mow.cli/internal/lexer
+github.com/jawher/mow.cli/internal/matcher
+github.com/jawher/mow.cli/internal/parser
+github.com/jawher/mow.cli/internal/values
+# github.com/jinzhu/gorm v1.9.2
+github.com/jinzhu/gorm
+github.com/jinzhu/gorm/dialects/mysql
+# github.com/jinzhu/inflection v0.0.0-20180308033659-04140366298a
+github.com/jinzhu/inflection
+# github.com/joeig/go-powerdns v0.0.0-20190124164214-4ea33e94dd60
+github.com/joeig/go-powerdns
+# github.com/labstack/echo v3.3.10+incompatible
+github.com/labstack/echo
+github.com/labstack/echo/middleware
+# github.com/labstack/gommon v0.2.8
+github.com/labstack/gommon/bytes
+github.com/labstack/gommon/color
+github.com/labstack/gommon/log
+github.com/labstack/gommon/random
+# github.com/mattn/go-colorable v0.0.9
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.4
+github.com/mattn/go-isatty
+# github.com/mitchellh/go-homedir v1.1.0
+github.com/mitchellh/go-homedir
+# github.com/robfig/cron v1.2.0
+github.com/robfig/cron
+# github.com/valyala/bytebufferpool v1.0.0
+github.com/valyala/bytebufferpool
+# github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4
+github.com/valyala/fasttemplate
+# github.com/xenolf/lego v2.1.0+incompatible
+github.com/xenolf/lego/log
+github.com/xenolf/lego/platform/config/env
+# golang.org/x/crypto v0.0.0-20190131182504-b8fe1690c613
+golang.org/x/crypto/acme
+golang.org/x/crypto/acme/autocert
+# golang.org/x/sys v0.0.0-20190204203706-41f3e6584952
+golang.org/x/sys/unix
+# google.golang.org/appengine v1.4.0
+google.golang.org/appengine/cloudsql
