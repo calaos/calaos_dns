@@ -1,7 +1,7 @@
 package models
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 )
@@ -16,7 +16,7 @@ func DownloadData(url string) (bodyBytes []byte, err error) {
 	}
 	defer rs.Body.Close()
 
-	bodyBytes, err = ioutil.ReadAll(rs.Body)
+	bodyBytes, err = io.ReadAll(rs.Body)
 	if err != nil {
 		log.Println("Failed to read bytes from request", err)
 	}

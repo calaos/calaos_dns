@@ -68,7 +68,7 @@ func InitLogger() (*log.Logger, *os.File, error) {
 	if globalLogger == nil {
 		l, err := os.OpenFile(filepath.Join(CreateCacheDir(), "calaos_ddns.log"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 		if err != nil {
-			return nil, nil, fmt.Errorf("[FATAL] failed to create logfile", err)
+			return nil, nil, fmt.Errorf("[FATAL] failed to create logfile: %v", err)
 		}
 		logFile = l
 

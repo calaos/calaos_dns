@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -13,7 +14,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
-	"github.com/joeig/go-powerdns"
+	"github.com/joeig/go-powerdns/v3"
 	"github.com/robfig/cron"
 )
 
@@ -21,7 +22,7 @@ var (
 	db          *gorm.DB
 	cronTab     *cron.Cron
 	wantLogging bool
-	pdns        *powerdns.PowerDNS
+	pdns        *powerdns.Client
 )
 
 func Init(logSql bool) (err error) {
@@ -166,7 +167,8 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 
 	z := mainzone + "." + config.Conf.Powerdns.Zone
 
-	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	ctx := context.Background()
+	_, err = pdns.Zones.Get(ctx, config.Conf.Powerdns.Zone)
 	if err != nil {
 		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
 		return fmt.Errorf("Internal error"), newToken
@@ -193,7 +195,7 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 
 		log.Println("Adding record to PowerDNS:", z)
 
-		err = zone.AddRecord(z, "A", 60, []string{ip})
+		err = pdns.Records.Add(ctx, config.Conf.Powerdns.Zone, z, powerdns.RRTypeA, 60, []string{ip})
 		if err != nil {
 			log.Println("Unable to add mainzone", z, ":", err)
 
@@ -208,7 +210,7 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 			for _, s := range subs {
 				sz := s + "." + z
 				log.Println("Adding record to PowerDNS:", sz)
-				err = zone.AddRecord(sz, "A", 60, []string{ip})
+				err = pdns.Records.Add(ctx, config.Conf.Powerdns.Zone, sz, powerdns.RRTypeA, 60, []string{ip})
 				if err != nil {
 					log.Println("Unable to add subzone", sz, ":", err)
 
@@ -232,7 +234,7 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 				for _, s := range subs {
 					sz := s + "." + z
 					log.Println("Deleting record from PowerDNS:", sz)
-					err = zone.DeleteRecord(sz, "A")
+					err = pdns.Records.Delete(ctx, config.Conf.Powerdns.Zone, sz, powerdns.RRTypeA)
 					if err != nil {
 						log.Println("Unable to delete subzone", sz, ":", err)
 					}
@@ -244,7 +246,7 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 				for _, s := range subs {
 					sz := s + "." + z
 					log.Println("Adding record to PowerDNS:", sz)
-					err = zone.AddRecord(sz, "A", 60, []string{ip})
+					err = pdns.Records.Add(ctx, config.Conf.Powerdns.Zone, sz, powerdns.RRTypeA, 60, []string{ip})
 					if err != nil {
 						log.Println("Unable to add subzone", sz, ":", err)
 
@@ -261,7 +263,7 @@ func RegisterDns(mainzone, subzone, token, ip string) (err error, newToken strin
 
 		if h.IP != ip {
 			log.Println("Updating record from PowerDNS:", z)
-			err = zone.ChangeRecord(z, "A", 60, []string{ip})
+			err = pdns.Records.Change(ctx, config.Conf.Powerdns.Zone, z, powerdns.RRTypeA, 60, []string{ip})
 			if err != nil {
 				log.Println("Unable to update mainzone", z, ":", err)
 			}
@@ -296,7 +298,8 @@ func DeleteDns(token string) (err error) {
 
 func deleteHost(h *Host) (err error) {
 
-	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	ctx := context.Background()
+	zone, err := pdns.Zones.Get(ctx, config.Conf.Powerdns.Zone)
 	if err != nil {
 		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
 		return
@@ -318,9 +321,9 @@ func deleteHost(h *Host) (err error) {
 
 	//Delete all _acme-challenge.*** if any. They are used for letsencrypt
 	for _, rr := range zone.RRsets {
-		if utils.StringInSlice(strings.Trim(rr.Name, "."), acme) {
+		if utils.StringInSlice(strings.Trim(*rr.Name, "."), acme) {
 			log.Println("Deleting record from PowerDNS:", rr.Name)
-			err = zone.DeleteRecord(rr.Name, "TXT")
+			err = pdns.Records.Delete(ctx, config.Conf.Powerdns.Zone, *rr.Name, powerdns.RRTypeTXT)
 			if err != nil {
 				log.Println("Unable to delete record", rr.Name, ":", err)
 			}
@@ -332,7 +335,7 @@ func deleteHost(h *Host) (err error) {
 		for _, s := range subs {
 			sz := s + "." + z
 			log.Println("Deleting record from PowerDNS:", sz)
-			err = zone.DeleteRecord(sz, "A")
+			err = pdns.Records.Delete(ctx, config.Conf.Powerdns.Zone, sz, powerdns.RRTypeA)
 			if err != nil {
 				log.Println("Unable to delete subzone", sz, ":", err)
 			}
@@ -340,7 +343,7 @@ func deleteHost(h *Host) (err error) {
 	}
 
 	log.Println("Deleting record from PowerDNS:", z)
-	err = zone.DeleteRecord(z, "A")
+	err = pdns.Records.Delete(ctx, config.Conf.Powerdns.Zone, z, powerdns.RRTypeA)
 	if err != nil {
 		log.Println("Unable to delete mainzone", z, ":", err)
 	}
@@ -366,7 +369,8 @@ func UpdateDns(token, ip string) (err error) {
 		return fmt.Errorf("Unknown token")
 	}
 
-	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	ctx := context.Background()
+	_, err = pdns.Zones.Get(ctx, config.Conf.Powerdns.Zone)
 	if err != nil {
 		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
 	}
@@ -375,7 +379,7 @@ func UpdateDns(token, ip string) (err error) {
 
 	if h.IP != ip {
 		log.Println("Updating record from PowerDNS:", z)
-		err = zone.ChangeRecord(z, "A", 60, []string{ip})
+		err = pdns.Records.Change(ctx, config.Conf.Powerdns.Zone, z, powerdns.RRTypeA, 60, []string{ip})
 		if err != nil {
 			log.Println("Unable to update mainzone", z, ":", err)
 		}
@@ -385,7 +389,7 @@ func UpdateDns(token, ip string) (err error) {
 			for _, s := range subs {
 				sz := s + "." + z
 				log.Println("Updating record from PowerDNS:", sz)
-				err = zone.ChangeRecord(sz, "A", 60, []string{ip})
+				err = pdns.Records.Change(ctx, config.Conf.Powerdns.Zone, sz, powerdns.RRTypeA, 60, []string{ip})
 				if err != nil {
 					log.Println("Unable to update subzone", sz, ":", err)
 				}
@@ -421,7 +425,8 @@ func AddLeRecord(token, leDomain, leToken string) (err error) {
 		return fmt.Errorf("Bad input")
 	}
 
-	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	ctx := context.Background()
+	_, err = pdns.Zones.Get(ctx, config.Conf.Powerdns.Zone)
 	if err != nil {
 		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
 	}
@@ -439,7 +444,7 @@ func AddLeRecord(token, leDomain, leToken string) (err error) {
 	}
 	acme := "_acme-challenge." + z
 
-	err = zone.AddRecord(acme, "TXT", 60, []string{"\"" + leToken + "\""})
+	err = pdns.Records.Add(ctx, config.Conf.Powerdns.Zone, acme, powerdns.RRTypeTXT, 60, []string{"\"" + leToken + "\""})
 	if err != nil {
 		log.Println("Unable to update zone for letsencrypt", acme, ":", err)
 	}
@@ -465,7 +470,8 @@ func DeleteLeRecord(token, leDomain string) (err error) {
 		return fmt.Errorf("Bad input")
 	}
 
-	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	ctx := context.Background()
+	_, err = pdns.Zones.Get(ctx, config.Conf.Powerdns.Zone)
 	if err != nil {
 		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
 	}
@@ -483,7 +489,7 @@ func DeleteLeRecord(token, leDomain string) (err error) {
 	}
 	acme := "_acme-challenge." + z
 
-	err = zone.DeleteRecord(acme, "TXT")
+	err = pdns.Records.Delete(ctx, config.Conf.Powerdns.Zone, acme, powerdns.RRTypeTXT)
 	if err != nil {
 		log.Println("Unable to update zone for letsencrypt", acme, ":", err)
 	}
@@ -492,7 +498,8 @@ func DeleteLeRecord(token, leDomain string) (err error) {
 }
 
 func GetPdnsRecords(h *Host) (records []string) {
-	zone, err := pdns.GetZone(config.Conf.Powerdns.Zone)
+	ctx := context.Background()
+	zone, err := pdns.Zones.Get(ctx, config.Conf.Powerdns.Zone)
 	if err != nil {
 		log.Println("Unable to get zone", config.Conf.Powerdns.Zone, "from PowerDNS:", err)
 		return
@@ -515,8 +522,8 @@ func GetPdnsRecords(h *Host) (records []string) {
 
 	//Delete all _acme-challenge.*** if any. They are used for letsencrypt
 	for _, rr := range zone.RRsets {
-		if utils.StringInSlice(strings.Trim(rr.Name, "."), acme) ||
-			strings.Trim(rr.Name, ".") == z {
+		if utils.StringInSlice(strings.Trim(*rr.Name, "."), acme) ||
+			strings.Trim(*rr.Name, ".") == z {
 			records = append(records, formatRecord(&rr))
 		}
 	}
@@ -527,8 +534,8 @@ func GetPdnsRecords(h *Host) (records []string) {
 func formatRecord(rr *powerdns.RRset) (s string) {
 	content := ""
 	if len(rr.Records) > 0 {
-		content = rr.Records[0].Content
+		content = *rr.Records[0].Content
 	}
-	s = fmt.Sprintf("%v\t%v\t%v\t%v", rr.Name, rr.Type, rr.TTL, content)
+	s = fmt.Sprintf("%v\t%v\t%v\t%v", *rr.Name, *rr.Type, *rr.TTL, content)
 	return
 }
